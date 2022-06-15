@@ -12,63 +12,31 @@ LOG_LEVEL = os.environ.get("LOG_LEVEL") or "DEBUG"
 # setup logging infrastructure
 
 logging.getLogger("urllib3").setLevel(logging.WARN)
+logging.getLogger("graphviz").setLevel(logging.WARN)
 
-FORMAT  = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+FORMAT  = os.environ.get("LOGGER_FORMAT", "%(message)s")
 DATEFMT = "%Y-%m-%d %H:%M:%S %z"
 
 logging.basicConfig(level=LOG_LEVEL, format=FORMAT, datefmt=DATEFMT)
 formatter = logging.Formatter(FORMAT, DATEFMT)
 logging.getLogger().handlers[0].setFormatter(formatter)
 
-# setup Flask server and API
+func_app_path = os.environ.get("FUNC_APP", None)
+app_svc_path  = os.environ.get("APP_SVC",  None)
 
-from flask import Flask, request
-from flask_cors import CORS, cross_origin
+logger.debug(f"🏃‍♂️ Running Azure from {func_app_path} + {app_svc_path}")
 
-import flask_restful
+from azure.mock import MockedAzure
 
-import json
-from datetime import datetime
+mocked_azure = MockedAzure()
+mocked_azure.serve_func_app(func_app_path)
+mocked_azure.serve_app_svc(app_svc_path)
+mocked_azure.setup()
 
-import fire
+# expose as azure.app.server, .socketio and .api
 
-from azure import func_app, app_svc
-
-import azure.functions as func
-
-class Encoder(json.JSONEncoder):
-  def default(self, o):
-    if isinstance(o, datetime):
-      return o.isoformat()
-    if isinstance(o, set):
-      return list(o)
-    if isinstance(o, func.HttpResponse):
-      return o.body
-    return super().default(o)
-
-func_app_path = os.environ.get("FUNC_APP")
-app_svc_path  = os.environ.get("APP_SVC")
-
-logger.info(f"running from {func_app_path} + {app_svc_path}")
-
-server   = None
-socketio = None
-api      = None
-
-if app_svc_path:
-  server, socketio = app_svc.create_app(app_svc_path)
-
-if not server:
-  logger.info("setting up API server")
-  server = Flask(__name__)
-
-if func_app_path:
-  cors = CORS(server, resources={r"*": {"origins": "*"}})
-  api = flask_restful.Api(server)
-  server.config['RESTFUL_JSON'] =  {
-    "indent" : 2,
-    "cls"    : Encoder
-  }
-  func_app.create_app(func_app_path, api=api)
+server   = mocked_azure.server
+socketio = mocked_azure.socketio
+api      = mocked_azure.api
 
 import azure.oauth

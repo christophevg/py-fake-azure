@@ -18,12 +18,18 @@ import azure.functions as func
 class Storage(object):
   def __init__(self):
     self.root = Path(os.environ.get("AZURE_SA", "local_blob_storage"))
+    logger.debug(f"🗄  Constructing a fake Storage Account in {self.root}.")
     try:
       with open("storage-queues.json") as fp:
         self.storage_queues = json.load(fp)
+      for container, queue in self.storage_queues.items():
+        logger.debug(f"🔈 Notifying changes to {container} via {queue}")
     except FileNotFoundError:
-      logger.warn("no storage queues defined")
+      logger.warn("⚠️  No storage queues defined !!!")
+      logger.warn("   👉 To map blob events to service bus event queues")
+      logger.warn("      create a storage-queues.json configuration.")
       self.storage_queues = {}
+
     self.subscriptions = {}
     self.outbox = []
 
@@ -33,12 +39,21 @@ class Storage(object):
     self.pool = Pool(processes=10)
 
   def run_notifier(self):
-    logger.info("started SA notifier...")
+    def monitor(f):
+      def execute(msg):
+        try:
+          f(msg)
+        except Exception as e:
+          logger.error(f"🚨  While executing function {f.name}...")
+          logger.exception(e)
+      return execute
+      
+    logger.debug("🔈 Started Storage Account notifier thread.")
     while True:
       if self.outbox:
         while self.outbox:
           (function, msg) = self.outbox.pop(0)
-          self.pool.apply_async(function, [msg])
+          self.pool.apply_async(monitor(function), [msg])
       time.sleep(.1)
 
   def subscribe(self, queue, function):
@@ -46,23 +61,27 @@ class Storage(object):
       self.subscriptions[queue].append(function)
     except KeyError:
       self.subscriptions[queue] = [ function ]
-    logger.info(f"added subscription on {queue} for {function}")
+    logger.debug(f"🗄  Set up subscription on {queue} for {function}.")
 
   def add(self, container, filename, data):
     path = self.root / Path(container)
     path.mkdir( parents=True, exist_ok=True )
     with open(path / Path(filename), "wb") as fp:
       fp.write(data)
-    logger.debug(f"created {filename} in {path}")
+    logger.debug(f"🗄  Created {filename} in {path}.")
     self.notify(container, filename, len(data))
 
   def notify(self, container, filename, size):
     queue = self.storage_queues.get(container, None)
-    if not queue: return
+    if not queue:
+      logger.warn(f"⚠️ No queue for {container}")
+      return
     subscriptions = self.subscriptions.get(queue, None)
-    if not subscriptions: return
+    if not subscriptions:
+      logger.warn(f"⚠️ No subscription on {queue}")
+      return
     for function in subscriptions:
-      logger.debug(f"notifying {function}")
+      logger.debug(f"🔈 Notifying {function}")
       self.outbox.append((function, func.ServiceBusMessage({
         "topic": "...",
         "subject": f"/blobServices/default/containers/{container}/blobs/{filename}",

@@ -122,10 +122,11 @@ class Function(object):
     self.manifest = Manifest(os.path.join(subdir, d, "function.json"))
     pkg = ".".join([subdir.replace("/", "."), d])
     sys.path.append(subdir)
+    self.name = d
     mod = importlib.import_module(pkg)
     self.function = getattr(mod, "main")
     if self.manifest.http_trigger:
-      logger.info(f"setting up API for {d} on {self.manifest.http_trigger['route']}")
+      logger.debug(f"📍 Setting up API endpoint for {d} on {self.manifest.http_trigger['route']}")
       api.add_resource(
         ResourceWrapper,
         "/api/" + self.manifest.http_trigger["route"],
@@ -133,13 +134,13 @@ class Function(object):
         resource_class_args=(self,)
       )
     if self.manifest.service_bus_trigger:
-      logger.info(f"setting up storage subscription for {d} on {self.manifest.service_bus_trigger['queueName']}")
-      
       queueName = self.manifest.service_bus_trigger["queueName"]
       for k, v in os.environ.items():
         queueName = queueName.replace(f"%{k}%", v)
-      
       StorageAccount.subscribe(queueName, self)
+
+  def __str__(self):
+    return self.name
 
   def __call__(self, *args, **kwargs):
     return self.function(*args, **kwargs)

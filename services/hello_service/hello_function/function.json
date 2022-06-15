@@ -13,6 +13,14 @@
       ]
     },
     {
+      "name"      : "outputblob",
+      "type"      : "blob",
+      "dataType"  : "binary",
+      "path"      : "container/filename_{rand-guid}.txt",
+      "connection": "dummy",
+      "direction" : "out"
+    },
+    {
       "type": "http",
       "direction": "out",
       "name": "$return"
