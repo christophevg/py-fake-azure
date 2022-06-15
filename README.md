@@ -4,7 +4,7 @@
 
 ## Minimal Survival Commands
 
-```bash
+```console
 $ pip install -r requirements.txt
 ```
 
@@ -12,7 +12,7 @@ $ pip install -r requirements.txt
 
 In `services/hello_service` two functions are defined: `hello_function` and `hello2_function`. The former has an HttpTrigger and creates a file in blob storage using an output blob binding. The latter receives an event via a Service Bus message and fetches the file created by the first function.
 
-```bash
+```console
 % python -m azure serve_func_app services/hello_service run
 🗄 Constructing a fake Storage Account in local_blob_storage.
 🔈 Notifying changes to container via inbox
@@ -30,7 +30,7 @@ In `services/hello_service` two functions are defined: `hello_function` and `hel
 
 Call it from the commandline:
 
-```bash
+```console
 % curl "http://localhost:5000/api/hello/v1/?name=Christophe"
 Hello, Christophe.
 ```
@@ -50,7 +50,7 @@ And see the functions in action...
 
 In `webapps/hello` a web application is hosted, serving a form that can target the function app...
 
-```bash
+```console
 % python -m azure serve_app_svc webapps/hello run
 🗄 Constructing a fake Storage Account in local_blob_storage.
 🔈 Notifying changes to container via inbox
@@ -66,7 +66,7 @@ In `webapps/hello` a web application is hosted, serving a form that can target t
 
 Try getting some 
 
-```bash
+```console
 % curl "http://localhost:5000/"    
 Hello, World!
 
@@ -103,7 +103,7 @@ Ans see the web app in action:
 
 You can run both at the same time ...
 
-```bash
+```console
 % python -m azure serve_func_app services/hello_service serve_app_svc webapps/hello run
 🗄 Constructing a fake Storage Account in local_blob_storage.
 🔈 Notifying changes to container via inbox
