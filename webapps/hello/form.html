@@ -1,0 +1,17 @@
+<html>
+<body>
+  api : <input id="api" value="http://localhost:5000/api/hello/v1" size="25"><br>
+  name : <input id="name" value="Dave"><br>
+  <button onclick="get();">get</button><br>
+  <div id="response"></div>
+</body>
+<script src="/js/jquery.min.js"></script>
+<script>
+  function get() {
+    var url = $("#api").val() + "?name=" + $("#name").val();
+    $.get(url, function(result) {
+      $("#response").html(result);
+    });
+  }
+</script>
+</html>
