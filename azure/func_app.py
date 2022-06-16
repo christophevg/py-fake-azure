@@ -113,9 +113,24 @@ class ResourceWrapper(Resource):
     if self.function.manifest.blob_out:
       args.append( BlobBinding(self.function.manifest.blob_out))
     result = self.function(*args)
+
+    # simple string output
     if isinstance(result, str):
       return make_response(result, 200)
-    return make_response(result.get_body(), result.status_code)
+
+    # HttpResponse
+    if isinstance(result, func.HttpResponse):
+      data = result.get_body()
+      if isinstance(data, str):
+        return make_response(data, result.status_code)
+
+      if result.mimetype:
+        return send_file(io.BytesIO(data), mimetype=result.mimetype)
+      else:
+        return send_file(io.BytesIO(data), mimetype="application/octet-stream")
+
+    logger.warn(f"⚠️ Unexpected function result: {result}")
+    raise make_response("ok", 200)
 
 class Function(object):
   def __init__(self, subdir, d, api):
