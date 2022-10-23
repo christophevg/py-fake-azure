@@ -10,8 +10,9 @@ import json
 import importlib
 import uuid
 from datetime import datetime
+import inspect
 
-from flask import request, make_response, send_file
+from flask import request, make_response, send_file, redirect
 from flask_restful import Resource, abort
 
 from azure.storage.blob import StorageAccount
@@ -92,6 +93,7 @@ class BlobBinding(object):
     path = self.manifest["path"]
     for k, v in os.environ.items():
       path = path.replace(f"%{k}%", v)
+    for k, v in os.environ.items():    
       path = path.replace(k, v)
     path = path.split("/")
     self.filename = path.pop()
@@ -105,18 +107,29 @@ class ResourceWrapper(Resource):
   def __init__(self, function):
     self.function = function
 
-  def get(self):
+  def get(self, *args, **kwargs):
     if not "get" in self.function.manifest.http_trigger["methods"]: abort(404)
     return self.execute()
 
-  def post(self):
+  def post(self, *args, **kwargs):
     if not "post" in self.function.manifest.http_trigger["methods"]: abort(404)
     return self.execute()
 
+  def delete(self, *args, **kwargs):
+    if not "delete" in self.function.manifest.http_trigger["methods"]: abort(404)
+    return self.execute()
+
   def execute(self):
+    # assemble expected args
     args = [ FlaskHttpRequest() ]
+    if "context" in self.function.parameters:
+      context = func.Context()
+      context.function_name = self.function.name
+      args.append(context)
     if self.function.manifest.blob_out:
       args.append( BlobBinding(self.function.manifest.blob_out))
+
+    # call function
     result = self.function(*args)
 
     # simple string output
@@ -125,9 +138,18 @@ class ResourceWrapper(Resource):
 
     # HttpResponse
     if isinstance(result, func.HttpResponse):
+  
+      # check for redirect
+      if result.status_code >= 300 and result.status_code < 400:
+        return redirect(result.headers["Location"], result.status_code)
+  
       data = result.get_body()
+      headers = result.headers
       if isinstance(data, str):
-        return make_response(data, result.status_code)
+        resp = make_response(data, result.status_code)
+        if result.mimetype:
+          resp.mimetype = result.mimetype
+        return resp
 
       if result.mimetype:
         return send_file(io.BytesIO(data), mimetype=result.mimetype)
@@ -139,17 +161,23 @@ class ResourceWrapper(Resource):
 
 class Function(object):
   def __init__(self, subdir, d, api):
-    self.manifest = Manifest(os.path.join(subdir, d, "function.json"))
+    try:
+      self.manifest = Manifest(os.path.join(subdir, d, "function.local.json"))
+    except:
+      self.manifest = Manifest(os.path.join(subdir, d, "function.json"))
     pkg = ".".join([subdir.replace("/", "."), d])
     sys.path.append(subdir)
-    self.name = d
     mod = importlib.import_module(pkg)
     self.function = getattr(mod, "main")
+    try:
+      self.name = mod.__name__
+    except:
+      self.name = d
     if self.manifest.http_trigger:
-      logger.debug(f"📍 Setting up API endpoint for {d} on {self.manifest.http_trigger['route']}")
+      logger.info(f"📍 Setting up API endpoint for {d} on {self.manifest.http_trigger['route']}")
       api.add_resource(
         ResourceWrapper,
-        "/api/" + self.manifest.http_trigger["route"],
+        *self.route,
         endpoint=d,
         resource_class_args=(self,)
       )
@@ -158,6 +186,37 @@ class Function(object):
       for k, v in os.environ.items():
         queueName = queueName.replace(f"%{k}%", v)
       StorageAccount.subscribe(queueName, self)
+
+  @property
+  def parameters(self):
+    return inspect.signature(self.function).parameters
+
+  @property
+  def route(self):
+    urls = []
+    r = self.manifest.http_trigger["route"]
+    if "{" in r:
+      parts = r.split("/")
+      url = []
+      for part in parts:
+        if part[0] == "{" and part[-1] == "}":
+          if part[1:-1] == "*route":
+            urls.append("/".join(url))
+            url.append("<path:route>")
+          else:
+            if ":" in part:
+              name, typing = part[1:-1].split(":")
+              if typing[-1] == "?":
+                urls.append("/".join(url))
+              url.append(f"<{name}>")
+            else:
+              url.append(f"<{part[1:-1]}>")
+        else:
+          url.append(part)
+      urls.append("/".join(url))
+    else:
+      urls.append(r) # no optional parts, simple route
+    return [ "/api/" + url for url in urls ]
 
   def __str__(self):
     return self.name
