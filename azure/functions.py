@@ -1,4 +1,5 @@
 import json
+import uuid
 
 class HttpResponse(object):
   def __init__(self, body=None, status_code=None, headers=None, mimetype=None, charset=None):
@@ -69,3 +70,11 @@ class ServiceBusMessage(object):
   @property
   def metadata(self):
     return "..."
+
+class Context():
+  def __init__(self):
+    self.function_directory = None
+    self.function_name      = None
+    self.invocation_id      = str(uuid.uuid4())
+    self.trace_context      = None
+    self.retry_context      = None
