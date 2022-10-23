@@ -1,5 +1,7 @@
 # basic implementation of storage account service
 
+__version__ = "fake-azure"
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -30,8 +32,15 @@ class Storage(object):
       logger.warn("      create a storage-queues.json configuration.")
       self.storage_queues = {}
 
+    try:
+      with open(self.root / "tags.json") as fp:
+        self.tags = json.load(fp)
+        logger.debug(f"🔈 loaded blob tags")
+    except FileNotFoundError:
+      self.tags = {}
+
     self.subscriptions = {}
-    self.outbox = []
+    self.outbox        = []
 
     self.notifier = Thread(target=self.run_notifier, args=())
     self.notifier.daemon = True
@@ -40,9 +49,12 @@ class Storage(object):
 
   def run_notifier(self):
     def monitor(f):
-      def execute(msg):
+      def execute(msg, context):
         try:
-          f(msg)
+          if "context" in f.parameters:
+            f(msg, context)
+          else:
+            f(msg)
         except Exception as e:
           logger.error(f"🚨  While executing function {f.name}...")
           logger.exception(e)
@@ -53,7 +65,9 @@ class Storage(object):
       if self.outbox:
         while self.outbox:
           (function, msg) = self.outbox.pop(0)
-          self.pool.apply_async(monitor(function), [msg])
+          context = func.Context()
+          context.function_name = function.name
+          self.pool.apply_async(monitor(function), [msg, context])
       time.sleep(.1)
 
   def subscribe(self, queue, function):
@@ -70,6 +84,46 @@ class Storage(object):
       fp.write(data)
     logger.debug(f"🗄  Created {filename} in {path}.")
     self.notify(container, filename, len(data))
+
+  def tag(self, container, filename, tags):
+    if not container in self.tags:
+      self.tags[container] = {}
+    self.tags[container][filename] = tags
+    with open(self.root / "tags.json", "w") as fp:
+      json.dump(self.tags, fp, indent=2)
+
+  def get_tags(self, container, filename):
+    try:
+      return self.tags[container][filename]
+    except KeyError:
+      pass
+    return {} 
+
+  def find_blobs_by_tags(self, exp):
+    # basic exp parsing of container and 1 tag equality
+    # e.g. @container='mycontainer' AND Name = 'C'
+    logger.info(f"find_blob_by_tags: {exp}")
+    container = None
+    tag       = None
+    value     = None
+    parts = exp.split(" AND ")
+    logger.info(parts)
+    for part in parts:
+      k, v = part.split(" = ")
+      if k == '@container':
+        container = v[1:-1]
+      else:
+        tag   = k[1:-1]
+        value = v[1:-1]
+    logger.info(f"looking for {container} {tag} = {value}")
+    try:
+      for filename in self.tags[container]:
+        logger.info(f"- {filename}")
+        if tag in self.tags[container][filename]:
+          if self.tags[container][filename][tag] == value:
+            yield BlobProperties(container, filename, self.tags[container][filename])
+    except KeyError:
+      pass
 
   def notify(self, container, filename, size):
     queue = self.storage_queues.get(container, None)
@@ -109,7 +163,12 @@ class Storage(object):
   def list(self, container):
     path = self.root / Path(container)
     for _, _, files in os.walk(path):
-      return [ Blob(f, container=container) for f in files ]
+      for filename in files:
+        try:
+          tags = self.tags[container][filename]
+        except KeyError:
+          tags = {}
+        yield BlobProperties(container, filename, tags)
 
   def get(self, container, filename):
     path = self.root / Path(container)
@@ -117,15 +176,37 @@ class Storage(object):
     with open(path / Path(filename), "rb") as fp:
       return StorageStreamDownloader(fp.read())
 
+  def exists(self, container, filename):
+    path = self.root / Path(container)
+    path.mkdir( parents=True, exist_ok=True )
+    return (path / Path(filename)).is_file()
+
 StorageAccount = Storage()
 
-class Blob(object):
+class BlobProperties(object):
+  def __init__(self, container, name, tags):
+    self.container = container
+    self.name      = name
+    self.tags      = tags
+
+class BlobClient(object):
   def __init__(self, name, container):
     self.name = name
     self.container = container
   
-  def upload_blob(self, data):
+  def upload_blob(self, data, tags=None):
     StorageAccount.add(self.container, self.name, data)
+    if tags:
+      self.set_blob_tags(tags)
+
+  def set_blob_tags(self, tags):
+    StorageAccount.tag(self.container, self.name, tags)
+
+  def get_blob_tags(self):
+    return StorageAccount.get_tags(self.container, self.name)
+
+  def exists(self):
+    return StorageAccount.exists(self.container, self.name)
 
 class StorageStreamDownloader(object):
   def __init__(self, data):
@@ -145,7 +226,7 @@ class ContainerClient(object):
     return StorageAccount.get(self.container, filename)
 
   def get_blob_client(self, filename):
-    return Blob(filename, self.container)
+    return BlobClient(filename, self.container)
 
 class BlobServiceClient(object):
   @classmethod
@@ -154,3 +235,24 @@ class BlobServiceClient(object):
 
   def get_container_client(self, container):
     return ContainerClient(container)
+
+  def find_blobs_by_tags(self, exp):
+    return StorageAccount.find_blobs_by_tags(exp)
+
+class BlockBlobService():
+  def __init__(self, account_name=None, account_key=None):
+    pass
+
+  def generate_blob_shared_access_signature(self,
+    container_name, blob_name, permission, until):
+    return "something"
+
+  def make_blob_url(self, container_name, blob_name, sas_token=None):
+    return f"http://localhost:5000/unknown/{container_name}/{blob_name}"
+
+class BlobPermissions():
+  ADD    = 0
+  CREATE = 1
+  DELETE = 2
+  READ   = 4
+  WRITE  = 8
