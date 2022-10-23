@@ -14,6 +14,7 @@ from multiprocessing.dummy import Pool
 from datetime import datetime
 import time
 import uuid
+import operator
 
 import azure.functions as func
 
@@ -100,27 +101,36 @@ class Storage(object):
     return {} 
 
   def find_blobs_by_tags(self, exp):
-    # basic exp parsing of container and 1 tag equality
-    # e.g. @container='mycontainer' AND Name = 'C'
-    logger.info(f"find_blob_by_tags: {exp}")
+    # basic exp parsing of "container and 1 tag expression", strictly formatted!
+    # e.g. @container = 'mycontainer' AND Name = 'C'
+    # e.g. @container = 'mycontainer' AND TimeToSend <= '1666519548'
+    logger.debug(f"find_blob_by_tags: {exp}")
     container = None
     tag       = None
     value     = None
     parts = exp.split(" AND ")
     logger.info(parts)
     for part in parts:
-      k, v = part.split(" = ")
+      op = operator.eq
+      symbol = "="
+      if "<=" in part:
+        op = operator.lt
+        symbol = "<="
+      if ">=" in part:
+        op = operator.gt
+        symbol = ">="
+      k, v = part.split(f" {symbol} ")
       if k == '@container':
         container = v[1:-1]
       else:
         tag   = k[1:-1]
         value = v[1:-1]
-    logger.info(f"looking for {container} {tag} = {value}")
+    logger.debug(f"looking for {container} {tag} {symbol} {value}")
     try:
       for filename in self.tags[container]:
         logger.info(f"- {filename}")
         if tag in self.tags[container][filename]:
-          if self.tags[container][filename][tag] == value:
+          if op(self.tags[container][filename][tag], value):
             yield BlobProperties(container, filename, self.tags[container][filename])
     except KeyError:
       pass
