@@ -1,0 +1,2 @@
+class DefaultAzureCredential():
+  pass
