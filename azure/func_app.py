@@ -41,6 +41,10 @@ class FlaskHttpRequest(object):
     return request.args
 
   @property
+  def route_params(self):
+    return request.view_args
+
+  @property
   def url(self):
     return request.url
 
