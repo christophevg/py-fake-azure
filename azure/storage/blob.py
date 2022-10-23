@@ -109,7 +109,7 @@ class Storage(object):
     tag       = None
     value     = None
     parts = exp.split(" AND ")
-    logger.info(parts)
+    logger.debug(parts)
     for part in parts:
       op = operator.eq
       symbol = "="
@@ -125,12 +125,14 @@ class Storage(object):
       else:
         tag   = k[1:-1]
         value = v[1:-1]
-    logger.debug(f"looking for {container} {tag} {symbol} {value}")
+    logger.debug(f"looking in {container} for {tag} {symbol} {value}")
     try:
       for filename in self.tags[container]:
-        logger.info(f"- {filename}")
+        logger.debug(f" - {filename} : {self.tags[container][filename]}")
         if tag in self.tags[container][filename]:
+          logger.debug(f"    {self.tags[container][filename][tag]} {op} {value}")
           if op(self.tags[container][filename][tag], value):
+            logger.debug(f"      match!")
             yield BlobProperties(container, filename, self.tags[container][filename])
     except KeyError:
       pass
