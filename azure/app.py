@@ -1,6 +1,21 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import schedule
+from threading import Thread
+import time
+
+# create thread for scheduler
+def run_scheduler():
+  while True:
+    logger.debug("⏰ tick")
+    schedule.run_pending()
+    time.sleep(1)
+  
+scheduler = Thread(target=run_scheduler, args=())
+scheduler.daemon = True
+scheduler.start()
+
 import os
 
 # load the environment variables for this setup
@@ -13,6 +28,7 @@ LOG_LEVEL = os.environ.get("LOG_LEVEL") or "DEBUG"
 
 logging.getLogger("urllib3").setLevel(logging.WARN)
 logging.getLogger("graphviz").setLevel(logging.WARN)
+logging.getLogger("schedule").setLevel(logging.WARN)
 
 FORMAT  = os.environ.get("LOGGER_FORMAT", "%(message)s")
 DATEFMT = "%Y-%m-%d %H:%M:%S %z"

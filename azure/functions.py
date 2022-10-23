@@ -78,3 +78,7 @@ class Context():
     self.invocation_id      = str(uuid.uuid4())
     self.trace_context      = None
     self.retry_context      = None
+
+class TimerRequest():
+  def __init__(self):
+    self. past_due = True

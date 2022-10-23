@@ -12,6 +12,8 @@ import uuid
 from datetime import datetime
 import inspect
 
+import schedule
+
 from flask import request, make_response, send_file, redirect
 from flask_restful import Resource, abort
 
@@ -86,6 +88,10 @@ class Manifest(object):
   @property
   def service_bus_trigger(self):
     return self.binding(type="serviceBusTrigger", direction="in")
+
+  @property
+  def timer_trigger(self):
+    return self.binding(type="timerTrigger", direction="in")
 
 class BlobBinding(object):
   def __init__(self, manifest):
@@ -173,6 +179,7 @@ class Function(object):
       self.name = mod.__name__
     except:
       self.name = d
+
     if self.manifest.http_trigger:
       logger.info(f"📍 Setting up API endpoint for {d} on {self.manifest.http_trigger['route']}")
       api.add_resource(
@@ -181,11 +188,23 @@ class Function(object):
         endpoint=d,
         resource_class_args=(self,)
       )
+
     if self.manifest.service_bus_trigger:
       queueName = self.manifest.service_bus_trigger["queueName"]
       for k, v in os.environ.items():
         queueName = queueName.replace(f"%{k}%", v)
       StorageAccount.subscribe(queueName, self)
+
+    if self.manifest.timer_trigger:
+      # basic support for limited set of cron schedules ;-)
+      if self.manifest.timer_trigger["schedule"] == "0 */5 * * * *":
+        logger.info(f"⏰ scheduling {self.name} every 5 minutes...")
+        schedule.every(5).minutes.do(self, func.TimerRequest())
+      elif self.manifest.timer_trigger["schedule"] == "*/5 * * * * *":
+        logger.info(f"⏰ scheduling {self.name} every 5 seconds...")
+        schedule.every(5).seconds.do(self, func.TimerRequest())
+      else:
+        logger.warn(f"unsupported schedule: {self.manifest.timer_trigger['schedule']}")
 
   @property
   def parameters(self):
