@@ -1,6 +1,8 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import sys
+
 from flask import Flask
 from flask_cors import CORS
 import flask_restful
@@ -24,7 +26,7 @@ class Encoder(json.JSONEncoder):
 
 class MockedAzure(object):
   def __init__(self):
-    self.func_app = None
+    self.func_app = []
     self.app_svc  = None
     self.server   = None
     self.socketio = None
@@ -33,8 +35,12 @@ class MockedAzure(object):
   def __str__(self):
     return ""
 
+  def with_common(self, path):
+    sys.path.append(path)
+    return self
+
   def serve_func_app(self, path):
-    self.func_app = path
+    self.func_app.append(path)
     return self
 
   def serve_app_svc(self, path):
@@ -56,7 +62,8 @@ class MockedAzure(object):
         "indent" : 2,
         "cls"    : Encoder
       }
-      func_app.create_app(self.func_app, api=self.api)
+      for path in self.func_app:
+        func_app.create_app(path, api=self.api)
 
   def run(self):
     self.setup()

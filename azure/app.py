@@ -30,15 +30,24 @@ else:
 formatter = logging.Formatter(FORMAT, DATEFMT)
 logging.getLogger().handlers[0].setFormatter(formatter)
 
-func_app_path = os.environ.get("FUNC_APP", None)
-app_svc_path  = os.environ.get("APP_SVC",  None)
-
-logger.debug(f"🏃‍♂️ Running Azure from {func_app_path} + {app_svc_path}")
+common_path    = os.environ.get("COMMON_MODULES_PATH", None)
+func_app_paths = os.environ.get("FUNC_APP", "").split(" ")
+app_svc_path   = os.environ.get("APP_SVC",  None)
 
 from azure.mock import MockedAzure
 
 mocked_azure = MockedAzure()
-mocked_azure.serve_func_app(func_app_path)
+logger.info(f"🏃‍♂️ Running Azure with:")
+if common_path:
+  logger.info(f"🍪 common path {common_path}")
+  mocked_azure.with_common(common_path)
+
+logger.info(f"📚 Function Apps")
+for path in func_app_paths:
+  logger.info(f"  📗 adding function app from {path}")
+  mocked_azure.serve_func_app(path)
+
+logger.info(f"🌎 App Service from {app_svc_path}")
 mocked_azure.serve_app_svc(app_svc_path)
 mocked_azure.setup()
 
