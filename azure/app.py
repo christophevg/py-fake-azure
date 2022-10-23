@@ -17,7 +17,16 @@ logging.getLogger("graphviz").setLevel(logging.WARN)
 FORMAT  = os.environ.get("LOGGER_FORMAT", "%(message)s")
 DATEFMT = "%Y-%m-%d %H:%M:%S %z"
 
-logging.basicConfig(level=LOG_LEVEL, format=FORMAT, datefmt=DATEFMT)
+LOG_FILE = os.environ.get("LOG_FILE")
+if LOG_FILE:
+  logging.basicConfig(
+    level=LOG_LEVEL,
+    filename=LOG_FILE, filemode="a",
+    format=FORMAT, datefmt=DATEFMT
+  )
+else:
+  logging.basicConfig(level=LOG_LEVEL, format=FORMAT, datefmt=DATEFMT)
+
 formatter = logging.Formatter(FORMAT, DATEFMT)
 logging.getLogger().handlers[0].setFormatter(formatter)
 
