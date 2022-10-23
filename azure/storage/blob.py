@@ -104,12 +104,10 @@ class Storage(object):
     # basic exp parsing of "container and 1 tag expression", strictly formatted!
     # e.g. @container = 'mycontainer' AND Name = 'C'
     # e.g. @container = 'mycontainer' AND TimeToSend <= '1666519548'
-    logger.debug(f"find_blob_by_tags: {exp}")
     container = None
     tag       = None
     value     = None
     parts = exp.split(" AND ")
-    logger.debug(parts)
     for part in parts:
       op = operator.eq
       symbol = "="
@@ -125,7 +123,7 @@ class Storage(object):
       else:
         tag   = k[1:-1]
         value = v[1:-1]
-    logger.debug(f"looking in {container} for {tag} {symbol} {value}")
+    logger.debug(f"🔎 looking in {container} for {tag} {symbol} {value}")
     try:
       for filename in self.tags[container]:
         logger.debug(f" - {filename} : {self.tags[container][filename]}")
