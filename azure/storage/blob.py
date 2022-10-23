@@ -88,7 +88,7 @@ class Storage(object):
   def tag(self, container, filename, tags):
     if not container in self.tags:
       self.tags[container] = {}
-    self.tags[container][filename] = tags
+    self.tags[container][filename] = { k:str(v) for k,v in tags.items() }
     with open(self.root / "tags.json", "w") as fp:
       json.dump(self.tags, fp, indent=2)
 
