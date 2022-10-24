@@ -14,6 +14,23 @@ from azure import func_app, app_svc
 
 import azure.functions as func
 
+import schedule
+from threading import Thread
+import time
+
+# create thread for scheduler
+def run_scheduler():
+  while True:
+    logger.debug("⏰ tick")
+    schedule.run_pending()
+    time.sleep(1)
+  
+scheduler = Thread(target=run_scheduler, args=())
+scheduler.daemon = True
+scheduler.start()
+
+logging.getLogger("schedule").setLevel(logging.WARN)
+
 class Encoder(json.JSONEncoder):
   def default(self, o):
     if isinstance(o, datetime):
