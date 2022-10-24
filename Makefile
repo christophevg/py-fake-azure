@@ -1,5 +1,5 @@
 LOG_LEVEL=INFO
-FUNC_APP=services/hello_service
+FUNC_APP="services/hello_service services/file_service"
 APP_SVC=webapps/hello
 
 all: clean
