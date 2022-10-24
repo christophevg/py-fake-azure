@@ -61,7 +61,6 @@ class Storage(object):
           logger.exception(e)
       return execute
       
-    logger.debug("🔈 Started Storage Account notifier thread.")
     while True:
       if self.outbox:
         while self.outbox:

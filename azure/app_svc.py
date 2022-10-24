@@ -20,7 +20,7 @@ def create_app(path):
   except:
     pass
     
-  logger.debug(f"🌎 Loaded webapp {p}")
+  logger.debug(f"  🌎 Loaded webapp {p}")
   if socketio:
     logger.debug(f"   with socketio")
   return server, socketio

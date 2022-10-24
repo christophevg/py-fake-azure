@@ -48,19 +48,25 @@ class MockedAzure(object):
     self.server   = None
     self.socketio = None
     self.api      = None
+    logger.info(f"🏃‍♂️ Running Azure with:")
 
   def __str__(self):
     return ""
 
   def with_common(self, path):
+    logger.info(f"🍪 common path {common_path}")
     sys.path.append(path)
     return self
 
   def serve_func_app(self, path):
+    if not self.func_app:
+      logger.info(f"📚 Function Apps")
+    logger.info(f"  📗 adding function app from {path}")
     self.func_app.append(path)
     return self
 
   def serve_app_svc(self, path):
+    logger.info(f"🌎 App Service from {path}")
     self.app_svc = path
     return self
   
@@ -69,7 +75,7 @@ class MockedAzure(object):
       self.server, self.socketio = app_svc.create_app(self.app_svc)
 
     if not self.server:
-      logger.debug("🌎 Setting up server for function app.")
+      logger.debug("  🌎 Setting up fresh server for function app.")
       self.server = Flask(__name__)
 
     if self.func_app:
