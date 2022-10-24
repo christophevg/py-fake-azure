@@ -1,11 +1,13 @@
-# Local Mocked Azure Support
+# Fake Azure
 
 > A Saturday night evening of fun resulted in a very minimalistic, but fully controlable fake Azure environment in Python with support for function apps, service apps, blob storage and service bus events.
 
 ## Minimal Survival Commands
 
 ```console
-$ pip install -r requirements.txt
+% git clone https://github.com/christophevg/py-fake-azure.git
+% cd py-fake-azure
+% pip install -r requirements.txt
 ```
 
 ## Function Apps
