@@ -3,7 +3,7 @@ class LogsQueryClient() :
     pass
 
   def query_workspace(self, workspace_id, query, timespan=None):
-    return
+    return LogsQuerResponse()
 
 class MetricsQueryClient():
   def __init__(self, credential):
