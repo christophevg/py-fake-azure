@@ -245,13 +245,9 @@ class Function(object):
     return self.function(*args, **kwargs)
 
 def create_app(path, api):
-  try:
-    subdir, dirs, _ = next(os.walk(path))
-    logger.debug(f"👀 creating function app from {path}")
+  for subdir, dirs, _ in os.walk(path):
     for d in dirs:
       try:
         Function(subdir, d, api)
-      except FileNotFoundError as e:
+      except FileNotFoundError:
         pass
-  except StopIteration:
-    logger.error(f"🛑 could not access {path}")
