@@ -1,6 +1,21 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import schedule
+from threading import Thread
+import time
+
+# create thread for scheduler
+def run_scheduler():
+  while True:
+    logger.debug("⏰ tick")
+    schedule.run_pending()
+    time.sleep(1)
+  
+scheduler = Thread(target=run_scheduler, args=())
+scheduler.daemon = True
+scheduler.start()
+
 import os
 
 # load the environment variables for this setup
@@ -13,6 +28,7 @@ LOG_LEVEL = os.environ.get("LOG_LEVEL") or "DEBUG"
 
 logging.getLogger("urllib3").setLevel(logging.WARN)
 logging.getLogger("graphviz").setLevel(logging.WARN)
+logging.getLogger("schedule").setLevel(logging.WARN)
 
 FORMAT  = os.environ.get("LOGGER_FORMAT", "%(message)s")
 DATEFMT = "%Y-%m-%d %H:%M:%S %z"
@@ -37,12 +53,17 @@ app_svc_path   = os.environ.get("APP_SVC",  None)
 from azure.mock import MockedAzure
 
 mocked_azure = MockedAzure()
+logger.info(f"🏃‍♂️ Running Azure with:")
 if common_path:
+  logger.info(f"🍪 common path {common_path}")
   mocked_azure.with_common(common_path)
 
+logger.info(f"📚 Function Apps")
 for path in func_app_paths:
+  logger.info(f"  📗 adding function app from {path}")
   mocked_azure.serve_func_app(path)
 
+logger.info(f"🌎 App Service from {app_svc_path}")
 mocked_azure.serve_app_svc(app_svc_path)
 mocked_azure.setup()
 
