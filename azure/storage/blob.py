@@ -61,6 +61,7 @@ class Storage(object):
           logger.exception(e)
       return execute
       
+    logger.debug("🔈 Started Storage Account notifier thread.")
     while True:
       if self.outbox:
         while self.outbox:
@@ -203,7 +204,7 @@ class BlobClient(object):
     self.name = name
     self.container = container
   
-  def upload_blob(self, data, tags=None):
+  def upload_blob(self, data, tags=None, overwrite=True):
     StorageAccount.add(self.container, self.name, data)
     if tags:
       self.set_blob_tags(tags)
@@ -223,6 +224,9 @@ class StorageStreamDownloader(object):
 
   def readall(self):
     return self.data
+
+  def download_to_stream(self, stream):
+    stream.write(self.data)
 
 class ContainerClient(object):
   def __init__(self, container):
