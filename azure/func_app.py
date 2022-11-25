@@ -181,7 +181,7 @@ class Function(object):
       self.name = d
 
     if self.manifest.http_trigger:
-      logger.info(f"  📍 Setting up API endpoint for {self.name} on {self.manifest.http_trigger['route']}")
+      logger.info(f"📍 Setting up API endpoint for {self.name} on {self.manifest.http_trigger['route']}")
       api.add_resource(
         ResourceWrapper,
         *self.route,
@@ -193,16 +193,16 @@ class Function(object):
       queueName = self.manifest.service_bus_trigger["queueName"]
       for k, v in os.environ.items():
         queueName = queueName.replace(f"%{k}%", v)
-      logger.info(f"  ✋ subscribing {self.name} as handler for {queueName}")
+      logger.info(f"✋ subscribing {self.name} as handler for {queueName}")
       StorageAccount.subscribe(queueName, self)
 
     if self.manifest.timer_trigger:
       # basic support for limited set of cron schedules ;-)
       if self.manifest.timer_trigger["schedule"] == "0 */5 * * * *":
-        logger.info(f"  ⏰ scheduling {self.name} every 5 minutes...")
+        logger.info(f"⏰ scheduling {self.name} every 5 minutes...")
         schedule.every(5).minutes.do(self, func.TimerRequest())
       elif self.manifest.timer_trigger["schedule"] == "*/5 * * * * *":
-        logger.info(f"  ⏰ scheduling {self.name} every 5 seconds...")
+        logger.info(f"⏰ scheduling {self.name} every 5 seconds...")
         schedule.every(5).seconds.do(self, func.TimerRequest())
       else:
         logger.warn(f"unsupported schedule: {self.manifest.timer_trigger['schedule']}")
